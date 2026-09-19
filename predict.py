@@ -8,6 +8,7 @@ Run: python predict.py --ticker AAPL
 
 import argparse
 import joblib
+import numpy as np
 import pandas as pd
 
 from data_fetch import fetch_price_history
@@ -23,7 +24,6 @@ def predict_next_day(ticker: str, model_path: str = None):
     feature_cols = bundle["features"]
 
     raw = fetch_price_history(ticker, period="1y")
-    featured = build_features(raw)
 
     # Note: build_features() drops the most recent row because its target
     # (next day's direction) is unknown. For a LIVE prediction we want
@@ -56,11 +56,6 @@ def build_features_for_prediction(raw: pd.DataFrame, feature_cols):
     Rebuilds features but keeps the final row (today), since normal
     build_features() drops it for lacking a next-day label.
     """
-    from features import build_features as _build
-
-    # Temporarily append a dummy row so the real last row isn't dropped
-    # by the shift(-1) / dropna in build_features. Simpler: recompute
-    # indicators directly without the label-dependent dropna.
     data = raw.copy()
     featured = _compute_indicators_only(data)
     latest = featured.iloc[[-1]][feature_cols]
@@ -73,6 +68,7 @@ def _compute_indicators_only(data: pd.DataFrame) -> pd.DataFrame:
     from ta.momentum import RSIIndicator, StochasticOscillator
     from ta.volatility import BollingerBands, AverageTrueRange
     from ta.volume import OnBalanceVolumeIndicator
+    from features import FEATURE_COLUMNS
 
     close = data["Close"]
     high = data["High"]
@@ -102,7 +98,15 @@ def _compute_indicators_only(data: pd.DataFrame) -> pd.DataFrame:
     data["high_low_range"] = (high - low) / close
     data["close_vs_sma50"] = (close - data["sma_50"]) / data["sma_50"]
 
-    return data.dropna()
+    # Same cleanup as build_features(): kill inf values (e.g. from
+    # zero-volume holiday rows) before dropping NaNs, and enforce float
+    # dtype so XGBoost never chokes on mixed/object columns.
+    data = data.replace([np.inf, -np.inf], np.nan)
+    data = data.dropna()
+    for col in FEATURE_COLUMNS:
+        data[col] = data[col].astype("float64")
+
+    return data
 
 
 if __name__ == "__main__":

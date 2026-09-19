@@ -67,9 +67,23 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     # it's what we're trying to predict, not a feature we train on.
     data["target"] = (close.shift(-1) > close).astype(int)
 
+    # Some tickers (e.g. NSE/BSE stocks) have zero-volume rows on holidays,
+    # which makes pct_change() produce +/-inf. Divisions like close_vs_sma50
+    # can also produce inf if a moving average is ever exactly zero.
+    # XGBoost cannot handle inf values, so replace them with NaN first -
+    # they'll then be dropped the same way as any other missing value.
+    data = data.replace([np.inf, -np.inf], np.nan)
+
     # Drop rows with NaNs from indicator warm-up periods and the last row
     # (which has no next-day label yet)
     data = data.dropna()
+
+    # Ensure every feature column is a clean float type - mixed/object
+    # dtypes (which can sneak in from some data sources) also break XGBoost.
+    feature_and_target_cols = FEATURE_COLUMNS + ["target"]
+    for col in feature_and_target_cols:
+        data[col] = data[col].astype("float64")
+    data["target"] = data["target"].astype("int64")
 
     return data
 
