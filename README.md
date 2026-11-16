@@ -85,3 +85,5 @@ the normal, expected result for this problem — not a bug in your code.
 Markets are close to (though not perfectly) efficient, and any
 easily-found edge tends to get arbitraged away. Treat this as a genuinely
 hard ML problem worth learning from, not a shortcut to consistent profit.
+
+<img src="dashboard.png" alt="Dashboard screenshot" width="800">
