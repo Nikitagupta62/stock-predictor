@@ -1,0 +1,44 @@
+name: hourly-prediction-log
+
+on:
+  schedule:
+    # UTC. 04:50-09:50 UTC = 10:20-15:20 IST, Monday-Friday.
+    # Runs 5 minutes after each hourly bar closes (10:15 ... 14:15 IST), plus once at
+    # 15:20 IST to score the final predictions. GitHub may delay scheduled runs a bit.
+    - cron: "50 4-9 * * 1-5"
+  workflow_dispatch: {}          # lets you run it by hand from the Actions tab
+
+permissions:
+  contents: write                # needed to commit data/live_log.csv
+
+concurrency:
+  group: hourly-log
+  cancel-in-progress: false
+
+jobs:
+  log:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements-ci.txt
+
+      - name: Predict, log and score
+        run: python log_job.py
+
+      - name: Commit the log
+        run: |
+          git config user.name "prediction-logger"
+          git config user.email "actions@users.noreply.github.com"
+          if [ -f data/live_log.csv ]; then git add data/live_log.csv; fi
+          if ! git diff --cached --quiet; then
+            git commit -m "log predictions $(date -u +%Y-%m-%dT%H:%MZ)"
+            git pull --rebase
+            git push
+          fi

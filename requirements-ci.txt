@@ -1,0 +1,12 @@
+# Used by the scheduled GitHub job (no Streamlit/plotly needed there).
+# IMPORTANT: the model file is loaded by this environment, so xgboost and
+# scikit-learn must match the versions you trained with. On your PC run:
+#     pip show xgboost scikit-learn
+# and pin them below, e.g.  xgboost==2.1.1  /  scikit-learn==1.5.2
+yfinance
+pandas
+numpy
+scikit-learn==1.9.0
+xgboost==3.4.1
+ta
+joblib

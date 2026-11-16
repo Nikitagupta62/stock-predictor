@@ -1,3 +1,9 @@
 venv/
 __pycache__/
+
+models/*
+data/*
+predictions_log.csv
 *.joblib
+!models/intraday_model.joblib
+!data/live_log.csv
